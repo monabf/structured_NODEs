@@ -1,4 +1,4 @@
-Code for the ICML 2022 submission: "Using what you know: Learning dynamics 
+Code for the paper: "Using what you know: Learning dynamics 
 from partial observations with structured neural ODEs".
 \
 Contains tests with simulation and real data. The experimental data from the 
