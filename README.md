@@ -46,7 +46,7 @@ To reproduce the results of the paper:
 - Robotic exoskeleton: run `python wandercraft_id/wandercraft_id_difftraj.py 
   1 KKL_u0T_back` for no structure (Fig.4 (b)), 
   `wandercraft_id_difftraj_x1dotx2.py` for x1dot = x2, x3dot = x4 (Fig.4 (c))
-  , `wandercraft_id_difftraj.py` for the residuals of the linear prior on 
+  , `wandercraft_id_difftraj_x1dotx2_residuals.py` for the residuals of the linear prior on 
   top of this constraint. The options for the recognition method (second 
   argument) are: `KKL_u0T_back`, `KKL_u0T`, `y0T_u0T`, `y0_u0`, `KKLu_back`, 
   `KKLu` (KKLu recognition method backward and forward also possible for this 
