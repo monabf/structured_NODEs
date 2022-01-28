@@ -1,0 +1,66 @@
+# To install required packages in virtual environment:
+# cd this_repo
+# python3 -m venv venv
+# source venv/bin/activate
+# pip install -r src/requirements.txt
+# save requirements with package versions: pip freeze > official_requirements.txt
+
+# On setting up PyCharm wiht virtualenv: https://stackoverflow.com/questions/33868806/configuring-pycharm-with-existing-virtualenv
+# To rename folders: https://askubuntu.com/questions/643098/recursive-directory-renaming
+
+# To solve problems with virtualenv and matplotlib in Mac OS, either do:
+# https://markhneedham.com/blog/2018/05/04/python-runtime-error-osx-matplotlib-not-installed-as-framework-mac/
+# but does not seem to work (fixes error but figures are all black), or with
+# Python3 simply use venv (newer) instead of virtualenv which builds python as a
+# framework: https://docs.python.org/3/library/venv.html
+# Further: https://github.com/matplotlib/matplotlib/issues/12074
+
+# If no plots showing: sudo apt-get install python3-tk
+# import matplotlib
+# matplotlib.use('TkAgg')
+
+numpy
+scipy
+matplotlib
+pandas
+seaborn
+jupyter
+sklearn
+dill
+control
+#slycot
+pickle5
+
+# Install PyTorch
+torch
+torchdiffeq
+tqdm
+
+# Install https://github.com/aliutkus/torchinterp1d for interpolation with
+# pytorch
+# cd ../ from src
+# git clone https://github.com/aliutkus/torchinterp1d
+# cd torchinterp1d
+# pip install -e .
+
+# Install PyFMI https://pypi.org/project/PyFMI/
+# Needs prior install of cython and FMI Library: https://jmodelica.org/FMILibrary/
+# https://stackoverflow.com/questions/40156622/importing-libraries
+# export FMIL_HOME=$HOME/build-fmil/2.0.3/ in terminal before installing pyfmi
+# Needs prior install of GCC and OMP, in Mac through brew install gcc and brew
+# install libomp. Example usage https://jmodelica.org/pyfmi/tutorial.html
+#pyfmi
+
+cython
+prettytable
+
+pytorch-lightning
+#tensorflow
+# tensorboard for visualization is included in pytorch-lightning, but seems to
+# have problems without tensorflow installed sometimes
+# if not found/problems, try: https://stackoverflow.com/questions/45095820/tensorboard-command-not-found
+# also try switching browsers/enabling cookies: Firefox seems best...
+
+# https://smt.readthedocs.io/en/latest/index.html
+smt
+
