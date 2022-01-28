@@ -1,7 +1,6 @@
 The MIT License (MIT)
 
-Copyright (c) 2022 Centre Automatique et Systèmes, Mines ParisTech, PSL 
-University
+Copyright (c) 2022 XXX
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
