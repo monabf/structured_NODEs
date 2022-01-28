@@ -10,7 +10,7 @@ To start working:
 - create a directory for this repo, further named dir
 - create dir/Figures/Logs
 - clone the repo in dir/src
-- unzip the Data.zip file
+- unzip the Data.zip file in dir/src to create dir/src/Data
 - create a python3 virtual environment for this repo in dir/venv, source it
 - install all requirements (`pip install -r src/requirements.txt`)
 - install interpolation repo: `git clone https://github.com/aliutkus/torchinterp1d` into dir, `cd torchinterp1d`, `pip install -e .`
