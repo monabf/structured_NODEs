@@ -6,3 +6,4 @@ __pycache__/
 venv/
 lightning_logs/
 */.ipynb_checkpoints/
+Data/

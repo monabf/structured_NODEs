@@ -33,10 +33,14 @@ def dynamics_traj(x0, u, t0, dt, init_control, discrete=False, version=None,
     device = x0.device
     if kwargs['kwargs'].get('solver_options'):
         solver_options = kwargs['kwargs'].get('solver_options').copy()
-        rtol = solver_options['rtol']
-        atol = solver_options['atol']
-        solver_options.pop('rtol')
-        solver_options.pop('atol')
+        if solver_options.get('rtol'):
+            rtol = solver_options['rtol']
+            atol = solver_options['atol']
+            solver_options.pop('rtol')
+            solver_options.pop('atol')
+        else:
+            rtol = 1e-3
+            atol = 1e-6
     else:
         solver_options = {}
         rtol = 1e-3

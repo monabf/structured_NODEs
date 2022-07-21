@@ -15,14 +15,11 @@ from simulation.observer_functions import EKF_ODE
 from model_evaluation.plotting_rollouts import NODE_rollout
 from utils.utils import reshape_pt1, reshape_dim1, interpolate_func, RMS
 
-# Script to evaluate the performance on the WDC data, using a trained NODE or
-# the prior linear model
-
 
 def plot_NODE_full_rollouts(NODE, dt, vars=['u', 'theta', 'w'],
                             lin_model=None, verbose=False, save=False):
     with torch.no_grad():
-        data_folder = 'Data/'
+        data_folder = 'Data//Wandercraft_id/'
         rollout_folder = os.path.join(NODE.results_folder,
                                       'Rollouts_' + str(NODE.step),
                                       'Full_rollouts_' + vars[0])
@@ -42,6 +39,7 @@ def plot_NODE_full_rollouts(NODE, dt, vars=['u', 'theta', 'w'],
         xtraj_list = []
         xtraj_estim_list = []
         for m in range(len(u_slice)):
+        # for m in range(10, 11):  # TODO
             time = torch.arange(0, len(theta_slice[m]) * dt, dt)
             xtraj_true = torch.cat((reshape_dim1(theta_slice[m]), reshape_dim1(
                 w_slice[m])), dim=1)
@@ -184,7 +182,8 @@ def plot_NODE_lin_rollouts(nb_rollouts, NODE, rollout_list,
             # Plot
             for k in range(xtraj_NODE.shape[1]):
                 name = 'Lin_rollout_model_predictions' + str(k) + '.pdf'
-                plt.plot(time, xtraj_NODE[:, k], 'b', label='NODE', alpha=0.7)
+                plt.plot(time, xtraj_NODE[:, k], 'b',
+                         label='NODE', alpha=0.7)
                 if lin_model is not None:
                     plt.plot(time, xtraj_lin[:, k], c='r',
                              label='Linear model', alpha=0.9)
@@ -217,3 +216,86 @@ def plot_NODE_lin_rollouts(nb_rollouts, NODE, rollout_list,
                     plt.show()
                 plt.close('all')
     return torch.mean(reshape_pt1(RMSE_output_list)).cpu()
+
+def plot_NODE_lin_Bode(NODE, dt, lin_model=None, vars=['u', 'theta', 'w'],
+                       verbose=False, save=False, two_deformation=False):
+    # name = 'Bode_diagram.pdf'
+    # # Plot Bode of linear model
+    # omega = np.logspace(-1.5, 3, 500)
+    # control.bode_plot(lin_model.G[0, 0], plot=True, dB=True, Hz=True,
+    #                   omega=omega, color="C0", linestyle="-.",
+    #                   label='One deformation: u -> theta')
+    # # control.bode_plot(lin_model.G[1, 0], plot=True, dB=True, Hz=True,
+    # #                   omega=omega, color="C1", linestyle="-.",
+    # #                   label='One deformation: u -> alpha')
+    # control.bode_plot(
+    #     control.TransferFunction.s * (
+    #             lin_model.G[0, 0] + lin_model.G[1, 0]),
+    #     plot=True, dB=True, Hz=True, omega=omega, color="C3",
+    #     linestyle="-.", label='One deformation: u -> dq')
+    # plt.suptitle('Open-loop transfer function for single deformation '
+    #              'model.')
+
+    # Plot Bode of NODE on training data
+    x0_list, utraj_list, xtraj_list, xtraj_estim_list = \
+        plot_NODE_full_rollouts(NODE, dt, vars=vars, verbose=verbose)
+    fund_freqs = []
+    for m in range(10, 11):  # TODO
+        m = 0
+    # for m in range(len(utraj_list)):
+        u = utraj_list[m].view(-1,)
+        N = len(u)
+        freq = np.arange(0, N) / N / dt
+        U = np.fft.fft(u)
+        Uabs = np.abs(U)
+        peaks, properties = signal.find_peaks(Uabs, height=1e5)
+        fund_freq = freq[peaks[0]]
+        print(m, fund_freq, len(u), len(peaks))
+        fund_freqs.append(fund_freq)
+        if len(peaks) > 2:
+            print(f'More than 2 peaks detected for slice {m}, threshold wrong?')
+        theta = xtraj_list[m][:, 0].view(-1,)
+        peaks, properties = signal.find_peaks(theta, prominence=1e-3)
+        time = np.arange(0, len(theta) * dt, dt)
+        plt.plot(time, theta)
+        plt.plot(time[peaks], theta[peaks], "x")
+        print(m, fund_freq, properties['prominences'].min(),
+              properties['prominences'].max())
+        plt.show()
+        plt.close('all')
+
+    # # Get experimental Bode points from pickle
+    # data = pkl.load(open(
+    #     'Data//Wandercraft_id/two_deformations/20200925T110815Z_LogFile_openloop.pickle',
+    #     'rb'))
+    # gain_encoder = [20 * np.log10(a / at) for a, at in
+    #                 zip(data["a_encoder"], data["a_torque"])]
+    # gain_gyro = [20 * np.log10(a / at) for a, at in
+    #              zip(data["a_gyro"], data["a_torque"])]
+    # data["phase_gyro"] = [p - 360 for p in data["phase_gyro"]]
+    # plt.scatter(data["frequency"], data["phase_encoder"], color="C0")
+    # plt.scatter(data["frequency"], data["phase_gyro"], color="C3")
+    # # Plot points above 30 Hz in gray.
+    # freq = [f for f in data["frequency"] if f > 31]
+    # enc = [p for p, f in zip(data["phase_encoder"], data["frequency"]) if
+    #        f > 31]
+    # gyro = [p for p, f in zip(data["phase_gyro"], data["frequency"]) if
+    #         f > 31]
+    # plt.scatter(freq, enc, color="#000000")
+    # plt.scatter(freq, gyro, color="#a0a0a0")
+    # plt.sca(plt.gcf().axes[0])
+    # plt.scatter(data["frequency"], gain_encoder, color="C0")
+    # plt.scatter(data["frequency"], gain_gyro, color="C3")
+    # enc = [p for p, f in zip(gain_encoder, data["frequency"]) if f > 31]
+    # gyro = [p for p, f in zip(gain_gyro, data["frequency"]) if f > 31]
+    # plt.scatter(freq, enc, color="#000000")
+    # plt.scatter(freq, gyro, color="#a0a0a0")
+    # plt.legend()
+    # plt.gcf().axes[0].legend()
+    # if save:
+    #     plt.savefig(os.path.join(
+    #         NODE.results_folder, 'Rollouts_' + str(NODE.step), name),
+    #         bbox_inches='tight')
+    # if verbose:
+    #     plt.show()
+    # plt.close('all')

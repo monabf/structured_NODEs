@@ -12,8 +12,6 @@ from utils.utils import MSE, MS
 from .defunc_time import DEFunc_time
 from .sensitivity_methods import My_Adjoint, My_Adjoint_difftraj
 
-sb.set_style('whitegrid')
-
 # Set double precision by default
 torch.set_default_tensor_type(torch.DoubleTensor)
 torch.set_default_dtype(torch.float64)
@@ -96,6 +94,7 @@ class NODE(pl.LightningModule):
         if scaler_Y is not None:
             y_estim = scaler_Y.transform(y_estim)
             y_true = scaler_Y.transform(y_true)
+        # loss = 1. / 2 * torch.sum(torch.square(y_estim - y_true))
         loss = 1. / 2 * MSE(y_estim, y_true)
         # Regularization: less efficient than weight_decay in optim_options
         # https://pytorch.org/assets/deep-learning/Deep-Learning-with-PyTorch.pdf 8.5.2

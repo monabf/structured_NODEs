@@ -27,7 +27,12 @@ from utils.utils import reshape_pt1, reshape_pt1_tonormal, save_log, \
     interpolate_func
 from .neural_ODE import NODE, NODE_difftraj
 
-sb.set_style('whitegrid')
+# To avoid Type 3 fonts for submission https://tex.stackexchange.com/questions/18687/how-to-generate-pdf-without-any-type3-fonts
+plt.rc('text', usetex=True)
+plt.rc('text.latex', preamble=r'\usepackage{amsfonts}\usepackage{cmbright}')
+plt.rc('font', family='serif')
+
+sb.set_style("whitegrid")
 
 # Set double precision by default
 torch.set_default_tensor_type(torch.DoubleTensor)
@@ -153,7 +158,8 @@ class Learn_NODE(pl.LightningModule):
                 'fixed_recognition_model', 'KKL_u0T_y0T', 'KKLu_y0T',
                 'KKL_u0T_back_y0T', 'KKLu_back_y0T', 'KKL_u0T_optimD_y0T',
                 'KKLu_optimD_y0T', 'KKL_u0T_back_optimD_y0T',
-                'KKLu_back_optimD_y0T')), \
+                'KKLu_back_optimD_y0T', 'y0T_u0T_RNN', 'y0T_u0T_RNN_back',
+                'y0T_u0T_RNN_outNN', 'y0T_u0T_RNN_outNN_back')), \
                 'Only possible options for init_state_obs_method are: x0 for ' \
                 'true x0; y0, y0_u0, y0T_u0T for these inputs; KKL_u0T, ' \
                 'KKL_u0T_back for the inputs z0, u0:T with z0 obtained by ' \
@@ -164,7 +170,10 @@ class Learn_NODE(pl.LightningModule):
                 'nonlinear transformation; fixed_recognition_model for a ' \
                 'fixed recognition model using directly y0:T and u0:T. A ' \
                 'term y0T can also be appended to the KKL-based models in ' \
-                'order to use both the KKL state and y0:T as input.'
+                'order to use both the KKL state and y0:T as input; ' \
+                'y0T_u0T_RNN(_outNN) and y0T_u0T_RNN(_outNN)_back for RNN on ' \
+                'the sequence y0T_u0T forward or backward (eventually also ' \
+                'with an output NN).'
 
         # Create model based on sensitivity
         if self.sensitivity not in ['forward', 'autograd', 'adjoint']:
@@ -300,10 +309,13 @@ class Learn_NODE(pl.LightningModule):
                                     'experimental data, hence need ' \
                                     'train/val/test sets.'
         if self.validation:
-            if self.ground_truth_approx:
-                val_size = 0.21  # 0.3 of remaining 0.7 after test split
+            if self.config.val_size is None:
+                if self.ground_truth_approx:
+                    val_size = 0.21  # 0.3 of remaining 0.7 after test split
+                else:
+                    val_size = 0.3
             else:
-                val_size = 0.3
+                val_size = self.val_size
             self.train_val_split = train_test_split(
                 np.arange(self.X_train.shape[0], dtype=int), test_size=val_size,
                 shuffle=True)
@@ -439,7 +451,6 @@ class Learn_NODE(pl.LightningModule):
         params = str(np.random.uniform()) + '_' + sensitivity + '_' + str(
             self.nb_samples) + 'samples_noise' + str(
             self.true_meas_noise_var) + '_' + str(
-            # self.model.__class__.__name__)
             self.NODE_model.__class__.__name__)
         if 'difftraj' in self.__class__.__name__:
             params = params + str(self.nb_difftraj)
@@ -1101,6 +1112,10 @@ class Learn_NODE(pl.LightningModule):
             # https://github.com/PyTorchLightning/pytorch-lightning/issues/3426
             checkpoint_model = torch.load(checkpoint_path)
             self.load_state_dict(checkpoint_model['state_dict'])
+        # Save with pickle a first time in case there is a problem after
+        with open(self.results_folder + '/Learn_NODE.pkl', 'wb') as f:
+            pkl.dump(self, f, protocol=4)
+        logging.info(f'Saved model in {self.results_folder}')
 
         # Save train/val/test data
         for key, val in self.variables.items():
@@ -1251,8 +1266,7 @@ class Learn_NODE(pl.LightningModule):
             print(sys.argv[0], file=f)
             for key, val in self.specs.items():
                 print(key, ': ', val, file=f)
-        with open(self.results_folder + '/model.pkl', 'wb') as f:
-            pkl.dump(self.model, f, protocol=4)
+        # Save with pickle again after updating everything
         with open(self.results_folder + '/Learn_NODE.pkl', 'wb') as f:
             pkl.dump(self, f, protocol=4)
         logging.info(f'Saved model in {self.results_folder}')
@@ -1435,6 +1449,40 @@ class Learn_NODE_difftraj(Learn_NODE):
             u_estim = self.config.controller[controller_idx](
                 self.t_eval, self.config, self.t0, self.init_control)
             xu_estim = torch.cat((x_estim, u_estim), dim=-1)
+
+        # xtrain_idx = idx_batch
+        # import matplotlib.pyplot as plt
+        # print(xtrain_idx, controller_idx, self.train_val_split[0][
+        #     self.train_test_split[0]], self.train_idx)
+        # print(init_state_estim.shape)
+        # xtraj_estim_forward = self.NODE_model.forward_traj(
+        #     self.init_state_estim[xtrain_idx], self.controller[controller_idx],
+        #     self.t0,
+        #     self.t_eval, self.init_control)
+        # print(xtraj_estim_forward.shape)
+        # plt.plot(self.U_train[xtrain_idx][0, :, 0])
+        # plt.plot(u_estim.detach()[0, :, 0])
+        # plt.show()
+        # plt.scatter(self.X_train[xtrain_idx][:, 0, 0], self.X_train[xtrain_idx][:, 0, -1])
+        # plt.scatter(self.init_state_estim.detach()[xtrain_idx][:, 0, 0], self.init_state_estim.detach()[xtrain_idx][:, 0, -1])
+        # plt.scatter(x_estim.detach()[:, 0, 0], x_estim.detach()[:, 0, -1])
+        # plt.scatter(xtraj_estim_forward.detach()[:, 0, 0], xtraj_estim_forward.detach()[:, 0, -1])
+        # x_estim_init = self.init_state_model(self.init_state_obs[xtrain_idx])
+        # print(self.init_state_obs.shape, self.init_state_estim.shape,
+        #       self.X_train.shape, x_estim.shape, x_estim_init.shape)
+        # plt.scatter(x_estim_init.detach()[:, 0, 0], x_estim_init.detach()[:, 0, -1])
+        # plt.show()
+        # plt.plot(self.X_train[xtrain_idx][0, :, 0])
+        # plt.plot(x_estim.detach()[0, :, 0])
+        # plt.plot(xtraj_estim_forward.detach()[0, :, 0])
+        # plt.plot(x_estim_init.detach()[0, :, 0], 'x')
+        # plt.show()
+        # plt.plot(self.X_train[xtrain_idx][0, :, -1])
+        # plt.plot(x_estim.detach()[0, :, -1])
+        # plt.plot(xtraj_estim_forward.detach()[0, :, -1])
+        # plt.plot(x_estim_init.detach()[0, :, -1], 'x')
+        # plt.show()
+
         losses = self.NODE_model.loss(
             y_estim=y_estim, y_true=y_batch, xu_estim=xu_estim,
             KKL_traj=KKL_traj, scaler_Y=self.scaler_Y, scaler_X=self.scaler_X)
@@ -1452,6 +1500,11 @@ class Learn_NODE_difftraj(Learn_NODE):
         if self.init_state_model:
             if 'optimD' in self.init_state_obs_method:
                 self.init_state_model.defunc.reset_idx()
+                # print(self.init_state_model.KKL_ODE_model.init_state_KKL.D[0,0],
+                #       self.model.init_state_KKL_Dscaled[0,0],
+                #       self.NODE_model.submodel.resmodel.layers[-1].weight[0,0],
+                #       self.init_state_model.init_state_model.layers[-1].weight[0,0])
+                # wait = input('')
         return {'loss': loss, 'log': logs}
 
     def val_dataloader(self):

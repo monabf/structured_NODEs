@@ -127,7 +127,6 @@ def set_DF(W0, dz, dy, method):
             torch.eye(dz)
         F = torch.ones(dz, dy)
     elif method.startswith('id'):
-        # Diagonal method
         D = - W0 * torch.eye(dz)
         F = torch.ones(dz, dy)
     elif method.startswith('randn'):
@@ -157,8 +156,11 @@ def make_init_state_obs(y_observed_true, utraj, init_state_x, time,
         init_state_obs = reshape_pt1(y_observed_true[0])
     elif config.init_state_obs_method == 'y0_u0':
         config['z_config'] = {}
-        init_state_obs = reshape_pt1(torch.cat((
-            torch.flatten(y_observed_true[0]), torch.flatten(utraj[0]))))
+        if config.no_control:
+            init_state_obs = reshape_pt1(torch.flatten(y_observed_true[0]))
+        else:
+            init_state_obs = reshape_pt1(torch.cat((
+                torch.flatten(y_observed_true[0]), torch.flatten(utraj[0]))))
     elif config.init_state_obs_method == 'y0T_u0T' or \
             config.init_state_obs_method == 'fixed_recognition_model':
         config['z_config'] = {}
@@ -167,6 +169,30 @@ def make_init_state_obs(y_observed_true, utraj, init_state_x, time,
         else:
             init_state_obs = reshape_pt1(torch.cat((
                 torch.flatten(y_observed_true), torch.flatten(utraj))))
+    elif config.init_state_obs_method == 'y0T_u0T_RNN' or \
+            config.init_state_obs_method == 'y0T_u0T_RNN_outNN':
+        # Same as y0T_u0T but different shape for torch.nn.RNN model
+        config['z_config'] = {}
+        if config.no_control or (len(utraj) == 0):
+            init_state_obs = torch.unsqueeze(reshape_dim1(y_observed_true), 0)
+        else:
+            if len(utraj) < len(y_observed_true):
+                utraj = utraj.expand((len(y_observed_true), -1))
+            init_state_obs = torch.unsqueeze(torch.cat((
+                reshape_dim1(y_observed_true), reshape_dim1(utraj)), dim=1), 0)
+    elif config.init_state_obs_method == 'y0T_u0T_RNN_back' or \
+                 config.init_state_obs_method == 'y0T_u0T_RNN_outNN_back':
+        # Same as y0T_u0T_RNN but flipped for backward time
+        config['z_config'] = {}
+        if config.no_control or (len(utraj) == 0):
+            init_state_obs = torch.unsqueeze(reshape_dim1(
+                torch.flip(y_observed_true, dims=[0, ])), 0)
+        else:
+            if len(utraj) < len(y_observed_true):
+                utraj = utraj.expand((len(y_observed_true), -1))
+            init_state_obs = torch.unsqueeze(torch.cat((
+                reshape_dim1(torch.flip(y_observed_true, dims=[0, ])),
+                reshape_dim1(torch.flip(utraj, dims=[0, ]))), dim=1), 0)
     elif 'optimD' in config.init_state_obs_method:
         if config.no_control or ('KKLu' in config.init_state_obs_method):
             init_state_obs = config['z_config']['init_state_estim']
@@ -186,11 +212,12 @@ def make_init_state_obs(y_observed_true, utraj, init_state_x, time,
             method=config.simu_solver, t_eval=z_t_eval, GP=None,
             kwargs=config.z_config)
         if config.no_control:
-            init_state_obs = reshape_pt1(ztraj_estim[config.init_state_obs_T-1])
+            init_state_obs = reshape_pt1(
+                ztraj_estim[config.init_state_obs_T - 1])
         else:
             init_state_obs = reshape_pt1(torch.cat((
                 torch.flatten(reshape_pt1(ztraj_estim[
-                                              config.init_state_obs_T-1])),
+                                              config.init_state_obs_T - 1])),
                 torch.flatten(utraj[:config.init_state_obs_Tu]))))
         if config.KKL_l2_reg is not None:
             t_y = torch.cat((reshape_dim1(z_t_eval),
@@ -202,15 +229,6 @@ def make_init_state_obs(y_observed_true, utraj, init_state_x, time,
                 dt=config.dt, init_control=0., discrete=False,
                 version=config.init_state_KKL, method=config.simu_solver,
                 t_eval=z_t_eval, GP=None, kwargs=config.z_config)
-        # print(z_t_eval, init_state_obs, utraj[:config.init_state_obs_T])
-        # import matplotlib.pyplot as plt
-        # plt.plot(flipped_measurement(z_t_eval))
-        # plt.plot(torch.flip(y_observed_true[:config.init_state_obs_T],
-        #                     dims=[0, ]))
-        # plt.plot(y_observed_true)
-        # plt.show()
-        # plt.plot(ztraj_estim)
-        # plt.show()
     elif config.init_state_obs_method.startswith('KKLu_back'):
         z0 = config['z_config']['init_state_estim']
         t_y = torch.cat((reshape_dim1(z_t_eval), reshape_dim1(
@@ -227,7 +245,7 @@ def make_init_state_obs(y_observed_true, utraj, init_state_x, time,
             dt=config.dt, init_control=config.init_control, discrete=False,
             version=config.init_state_KKL, method=config.simu_solver,
             t_eval=z_t_eval, GP=None, kwargs=config.z_config)
-        init_state_obs = reshape_pt1(ztraj_estim[config.init_state_obs_T-1])
+        init_state_obs = reshape_pt1(ztraj_estim[config.init_state_obs_T - 1])
         if config.KKL_l2_reg is not None:
             t_y = torch.cat((reshape_dim1(z_t_eval),
                              reshape_dim1(y_observed_true)), dim=1)
@@ -243,24 +261,6 @@ def make_init_state_obs(y_observed_true, utraj, init_state_x, time,
                 discrete=False, version=config.init_state_KKL,
                 method=config.simu_solver, t_eval=z_t_eval, GP=None,
                 kwargs=config.z_config)
-        # import matplotlib.pyplot as plt
-        # for i in range(y_observed_true.shape[-1]):
-        #     plt.plot(z_t_eval, flipped_measurement(z_t_eval, config)[..., i])
-        #     plt.plot(z_t_eval,torch.flip(y_observed_true,
-        #                         dims=[0, ])[...,i])
-        #     plt.plot(z_t_eval,y_observed_true[...,i])
-        #     plt.show()
-        # print(z_t_eval, (config.init_state_obs_T - 1) * config.dt - z_t_eval,
-        #       len(z_t_eval), config.dt, torch.arange(len(z_t_eval)) * config.dt)
-        # plt.plot(z_t_eval, flipped_controller(z_t_eval, config.z_config,
-        #                                      z_t_eval[0],
-        #                             config.init_control,
-        #                             impose_init_control=False))
-        # plt.plot(z_t_eval, torch.flip(utraj, dims=[0, ]))
-        # plt.plot(z_t_eval, utraj)
-        # plt.show()
-        # plt.plot(ztraj_estim)
-        # plt.show()
     elif config.init_state_obs_method.startswith('KKL_u0T'):
         z0 = config['z_config']['init_state_estim']
         t_y = torch.cat((reshape_dim1(z_t_eval),
@@ -273,22 +273,15 @@ def make_init_state_obs(y_observed_true, utraj, init_state_x, time,
             method=config.simu_solver, t_eval=z_t_eval, GP=None,
             kwargs=config.z_config)
         if config.no_control:
-            init_state_obs = reshape_pt1(ztraj_estim[config.init_state_obs_T-1])
+            init_state_obs = reshape_pt1(
+                ztraj_estim[config.init_state_obs_T - 1])
         else:
             init_state_obs = reshape_pt1(torch.cat((
                 torch.flatten(reshape_pt1(ztraj_estim[
-                                              config.init_state_obs_T-1])),
+                                              config.init_state_obs_T - 1])),
                 torch.flatten(utraj[:config.init_state_obs_Tu]))))
         if config.KKL_l2_reg is not None:
             KKL_traj = ztraj_estim
-        # import matplotlib.pyplot as plt
-        # print(z_t_eval, init_state_obs, utraj[:config.init_state_obs_T])
-        # for i in range(y_observed_true.shape[1]):
-        #     plt.plot(measurement(z_t_eval)[:, i])
-        #     plt.plot(y_observed_true[:config.init_state_obs_T, i])
-        #     plt.show()
-        # plt.plot(ztraj_estim)
-        # plt.show()
     elif config.init_state_obs_method.startswith('KKLu'):
         z0 = config['z_config']['init_state_estim']
         t_y = torch.cat((reshape_dim1(z_t_eval),
@@ -304,21 +297,9 @@ def make_init_state_obs(y_observed_true, utraj, init_state_x, time,
             init_control=config.init_control, discrete=False,
             version=config.init_state_KKL, method=config.simu_solver,
             t_eval=z_t_eval, GP=None, kwargs=config.z_config)
-        init_state_obs = reshape_pt1(ztraj_estim[config.init_state_obs_T-1])
+        init_state_obs = reshape_pt1(ztraj_estim[config.init_state_obs_T - 1])
         if config.KKL_l2_reg is not None:
             KKL_traj = ztraj_estim
-        # print(init_state_obs)
-        # import matplotlib.pyplot as plt
-        # plt.plot(measurement(z_t_eval))
-        # plt.plot(y_observed_true[:config.init_state_obs_T])
-        # plt.show()
-        # plt.plot(controller(z_t_eval, config.z_config, z_t_eval[0],
-        #                     config.init_control))
-        # plt.plot(controller(time, config, config.t0,
-        #                     config.init_control)[:config.init_state_obs_T])
-        # plt.show()
-        # plt.plot(ztraj_estim)
-        # plt.show()
     else:
         raise KeyError(f'No recognition model under the name '
                        f'{config.init_state_obs_method}')
@@ -348,7 +329,7 @@ def make_diff_init_state_obs(diff_y_observed, diff_utraj, init_state_x, time,
         init_state_obs = make_init_state_obs(
             diff_y_observed[i], diff_utraj[i], init_state_x[i], time, config)
         if i == 0:
-            diff_init_state_obs = torch.zeros(0, 1, init_state_obs.shape[1],
+            diff_init_state_obs = torch.zeros((0, 1) + init_state_obs.shape[1:],
                                               device=device)
         diff_init_state_obs = torch.cat((
             diff_init_state_obs, torch.unsqueeze(init_state_obs, 0)), dim=0)
@@ -358,8 +339,8 @@ def make_diff_init_state_obs(diff_y_observed, diff_utraj, init_state_x, time,
 def update_trajs_init_state_obs(xtraj_true, y_observed_true, utraj,
                                 time, config: Config):
     # Model estimation starts at T if KKL used forward to estimate x0
-    if ('KKL' in config.init_state_obs_method) and not \
-            ('back' in config.init_state_obs_method):
+    if any(k in config.init_state_obs_method for k in ['RNN', 'KKL']) and (
+            'back' not in config.init_state_obs_method):
         if len(xtraj_true.shape) == 3:  # difftraj
             xtraj_true = torch.transpose(xtraj_true, 0, 1)
             y_observed_true = torch.transpose(y_observed_true, 0, 1)
@@ -405,14 +386,7 @@ def update_config_init_state_obs(diff_init_state_obs, init_state_model,
         diff_init_state_estim = reshape_pt1(
             init_state_model(diff_init_state_obs))
         scaler_Z = StandardScaler(torch.squeeze(diff_init_state_obs, dim=1))
-    # if config.nb_difftraj is not None:
-    #     init_state_x = config.init_state_x.contiguous().view(
-    #         config.nb_difftraj, config.init_state_x.shape[-1])
-    # else:
-    #     init_state_x = config.init_state_x
     config['z_config'].update(dict(scaler_Z=scaler_Z))
-    # scaler_Y = StandardScaler(init_state_x)
-    # init_state_model.set_scalers(scaler_X=scaler_Z, scaler_Y=scaler_Y)
     n_param, param = get_parameters(init_state_model, verbose=True)
     d_init_state_model = diff_init_state_obs.shape[-1]
     config.update(dict(
@@ -533,8 +507,8 @@ class KKL_optimD_model(pl.LightningModule):
     def simulate_ztraj(self, z0, z_t_eval):
         # From z(0) and simulation time, simulate z and return whole trajectory
         ztraj = torchdiffeq.odeint(
-                self.defunc, z0.to(self.device), z_t_eval.to(self.device),
-                **self.config.optim_solver_options)
+            self.defunc, z0.to(self.device), z_t_eval.to(self.device),
+            **self.config.optim_solver_options)
         if self.difftraj:
             return torch.transpose(torch.squeeze(ztraj, dim=2), 0, 1)
         else:
@@ -547,17 +521,18 @@ class KKL_optimD_model(pl.LightningModule):
         if ztraj is None:
             ztraj = self.simulate_ztraj(z0, z_t_eval)
         if self.difftraj:
-            z = torch.unsqueeze(ztraj[:, self.config.init_state_obs_T-1], dim=1)
+            z = torch.unsqueeze(ztraj[:, self.config.init_state_obs_T - 1],
+                                dim=1)
             return z
         else:
-            z = reshape_pt1(ztraj[self.config.init_state_obs_T-1])
+            z = reshape_pt1(ztraj[self.config.init_state_obs_T - 1])
             return z
 
     def simulate_zu(self, z0_u, ztraj=None):
         # From z(0): simulate z, retain z(T), and return (z(T), u(0), ..., u(T))
         u = reshape_dim1(
             z0_u[..., self.KKL_ODE_model.n:
-                      self.KKL_ODE_model.n+self.config.init_state_obs_Tu])
+                      self.KKL_ODE_model.n + self.config.init_state_obs_Tu])
         z0 = reshape_dim1(z0_u[..., :self.KKL_ODE_model.n])
         z = self.simulate_only_z(z0, ztraj)
         zu = torch.cat((torch.flatten(z, start_dim=1),

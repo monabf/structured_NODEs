@@ -8,8 +8,17 @@ from utils.utils import reshape_pt1, reshape_dim1_tonormal
 from utils.pytorch_utils import StandardScaler
 
 
-# Classes of NN models used to learn structured NODEs on WDC data
-# Contains the prior linear models identified at WDC
+# Classes of NN models used to learn recognition models on benchmark systems
+# These can then be reused as a model attribute in a LearnODE (sub)class
+# https://machinelearningmastery.com/pytorch-tutorial-develop-deep-learning-models/
+# Good practice for training NN with ReLU:
+# https://machinelearningmastery.com/rectified-linear-activation-function-for-deep-learning-neural-networks/
+# On activation functions:
+# https://mlfromscratch.com/activation-functions-explained/#/
+# https://stats.stackexchange.com/questions/218542/which-activation-function-for-output-layer
+# https://stats.stackexchange.com/questions/81499/are-bias-weights-essential-in-the-output-layer-if-one-wants-a-universal-functio
+# Use batch normalization?
+
 
 # Normalize data in forward function: all that goes into the NN is normalized
 # then denormalized. This step is taken into account in grad of output of NN
@@ -112,7 +121,7 @@ class WDC_simple_recog4(nn.Module):
         return x0
 
 
-# Double deformation model identified at WDC
+# Double deformation model identified by Matthieu
 class WDC_two_deformation_model(nn.Module):
     def __init__(self):
         super(WDC_two_deformation_model, self).__init__()
@@ -191,7 +200,7 @@ class WDC_two_deformation_model(nn.Module):
         return self.dynamics(x, u)
 
 
-# Single deformation model identified at WDC
+# Single deformation model identified by Matthieu
 class WDC_single_deformation_model(nn.Module):
     def __init__(self):
         super(WDC_single_deformation_model, self).__init__()
@@ -336,6 +345,8 @@ class WDC_x1dotx2_submodel(nn.Module):
         self.f.set_scalers(self.scaler_X, scaler_fY)
 
     def forward(self, x):
+        # u = reshape_pt1(x[..., config.n:])
+        # x = reshape_pt1(x[..., :config.n])
         xdot = torch.zeros_like(x[..., :self.config.n])  # shape (N, 1, n)
         xdot[..., 0] = x[..., 1]
         xdot[..., 2] = x[..., 3]
@@ -407,3 +418,68 @@ class WDC_x1dotx2_resmodel(nn.Module):
         xdot_NODE[..., 1] = res[..., 0]
         xdot_NODE[..., 3] = res[..., 1]
         return xdot_WDC + xdot_NODE
+
+
+# Simple RNN model (based on pytorch) with n hidden layers. Can pass
+# StandardScaler to normalize in and output in forward function.
+# GRU: https://towardsdatascience.com/understanding-gru-networks-2ef37df6c9be
+class RNNn(nn.Module):
+    def __init__(self, n_in, n_out, h0=None, n_hl=1, RNN=torch.nn.RNN,
+                 RNN_args={}, scaler_X=None, scaler_Y=None):
+        self.scaler_X = scaler_X
+        self.scaler_Y = scaler_Y
+        super(RNNn, self).__init__()
+        self.h0 = h0
+        self.model = RNN(
+            input_size=n_in, hidden_size=n_out, num_layers=n_hl,
+            batch_first=True, *RNN_args)
+
+    def set_scalers(self, scaler_X=None, scaler_Y=None):
+        self.scaler_X = scaler_X
+        self.scaler_Y = scaler_Y
+
+    def forward(self, x):
+        # Compute seq of hidden variables given input seq and hidden init h0
+        # Normalize in, denormalize out
+        # Input shape (N,1,T,p+nu), output shape (N,1,n)
+        xin = torch.squeeze(x, 1)
+        if self.scaler_X:
+            xin = self.scaler_X.transform(xin)
+        if self.h0 is None:
+            hn, xout = self.model(xin)
+        else:
+            hn, xout = self.model(xin, self.h0)
+        if self.scaler_Y:
+            xout = self.scaler_Y.inverse_transform(xout)
+        if len(x.shape) > 3:
+            return torch.transpose(xout, 0, 1)
+        else:
+            return torch.squeeze(xout, 0)
+
+# Simple MLP model that takes as input the output of a previous model (for
+# example an RNN)
+class MLPn_xin(MLPn):
+    def __init__(self, num_hl, n_in, n_hl, n_out, model_in,
+                 activation=nn.Tanh(), init=None, init_args={},
+                 scaler_X=None, scaler_Y=None):
+        super(MLPn_xin, self).__init__(
+            num_hl=num_hl, n_in=n_in, n_hl=n_hl, n_out=n_out,
+            activation=activation, init=init, init_args=init_args,
+            scaler_X=scaler_X, scaler_Y=scaler_Y)
+        self.model_in = model_in
+
+    def set_scalers(self, scaler_X=None, scaler_Y=None):
+        self.model_in.set_scalers(scaler_X=scaler_X)
+        self.scaler_Y = scaler_Y
+        self.scaler_X = scaler_X  # only for saving, not using
+
+    def forward(self, x):
+        # Compute output through all layers. Normalize in, denormalize out
+        x = self.model_in(x)
+        # if self.scaler_X:
+        #     x = self.scaler_X.transform(x)
+        for i, layer in enumerate(self.layers):
+            x = layer(x)
+        if self.scaler_Y:
+            x = self.scaler_Y.inverse_transform(x)
+        return x

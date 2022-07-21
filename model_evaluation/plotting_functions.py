@@ -12,7 +12,12 @@ from .plotting_closedloop_rollouts import model_closedloop_rollout
 from .plotting_kalman_rollouts import model_kalman_rollout
 from .plotting_rollouts import model_rollout, NODE_rollout, NODE_EKF_rollout
 
-sb.set_style('whitegrid')
+# To avoid Type 3 fonts for submission https://tex.stackexchange.com/questions/18687/how-to-generate-pdf-without-any-type3-fonts
+plt.rc('text', usetex=True)
+plt.rc('text.latex', preamble=r'\usepackage{amsfonts}\usepackage{cmbright}')
+plt.rc('font', family='serif')
+
+sb.set_style("whitegrid")
 
 
 # Some useful plotting functions to make nice graphs of dynamics GPs,
@@ -224,13 +229,14 @@ def run_rollouts_NODE(NODE, input_rollout_list, only_prior=False,
     complete_true_mean = torch.zeros((
         complete_length, input_rollout_list[0][2].shape[1]), device=device)
     inits = torch.zeros(len(input_rollout_list),
-                        input_rollout_list[0][0].shape[1], device=device)
+                        len(torch.flatten(input_rollout_list[0][0])),
+                        device=device)
     for i in range(len(input_rollout_list)):
         current_mean = reshape_pt1(input_rollout_list[i][2])[1:, :]
         current_length = len(current_mean)
         complete_true_mean[i * current_length:(i + 1) * current_length] = \
             current_mean
-        inits[i] = reshape_pt1(input_rollout_list[0][0])
+        inits[i] = reshape_pt1(torch.flatten(input_rollout_list[0][0]))  # TODO
     mean_test_var = torch.var(complete_true_mean)  # would be better det(covar)
     inits_var = torch.var(inits)
     if NODE.ground_truth_approx:

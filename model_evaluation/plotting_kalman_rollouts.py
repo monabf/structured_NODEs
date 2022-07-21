@@ -9,7 +9,12 @@ from simulation.observers import dynamics_traj_observer
 from utils.utils import RMS, log_multivariate_normal_likelihood, reshape_pt1, \
     reshape_dim1, interpolate_func, list_torch_to_numpy
 
-sb.set_style('whitegrid')
+# To avoid Type 3 fonts for submission https://tex.stackexchange.com/questions/18687/how-to-generate-pdf-without-any-type3-fonts
+plt.rc('text', usetex=True)
+plt.rc('text.latex', preamble=r'\usepackage{amsfonts}\usepackage{cmbright}')
+plt.rc('font', family='serif')
+
+sb.set_style("whitegrid")
 
 
 # Some useful plotting functions to run kalman-style rollouts (trajectory of GP

@@ -1,5 +1,6 @@
 from torchdiffeq import odeint
 
+from utils.utils import reshape_dim1
 from .observer_functions import *
 
 # Solver to simulate dynamics of observer. Takes an observer object as input
@@ -179,10 +180,9 @@ def dynamics_traj_observer_backward(xf, u, y, tf, xtraj_forward, dt,
 
 # Functions for observing experimental data from full data
 def dim1_observe_data(xtraj):
-    return torch.index_select(xtraj, dim=-1,
-                              index=torch.tensor([0], device=xtraj.device))
-    # return reshape_dim1(xtraj[:, 0])  # TODO check that replacement ok
-
+    # return reshape_dim1(xtraj[..., 0])
+    return torch.index_select(
+        xtraj, dim=-1, index=torch.tensor([0], device=xtraj.device))
 
 def dim14_observe_data(xtraj):
     return torch.index_select(
@@ -192,3 +192,6 @@ def dim14_observe_data(xtraj):
 def dim16_observe_data(xtraj):
     return torch.index_select(
         xtraj, dim=-1, index=torch.tensor([0, 5], device=xtraj.device))
+
+def dimlast_observe_data(xtraj):
+    return reshape_dim1(xtraj[..., -1])

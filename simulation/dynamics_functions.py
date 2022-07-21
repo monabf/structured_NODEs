@@ -66,13 +66,67 @@ class VanDerPol:
         device = x.device
         x = reshape_pt1(x)
         u = reshape_pt1(u(t, kwargs, t0, init_control, impose_init_control))
-        F = torch.tensor(
-            [[0, self.mu * (1 - x[:, 0] ** 2) * x[:, 1]]],
-            device=device)
-        xdot = torch.matmul(self.A, x.t()).t() + F + u
+        xdot = torch.matmul(self.A, x.t()).t()
+        xdot[:, 1] += self.mu * (1 - x[:, 0] ** 2) * x[:, 1] + u[:, 0]
         if process_noise_var != 0:
             xdot += torch.normal(0, np.sqrt(process_noise_var), size=xdot.shape,
                                  device=device)
+        return xdot
+
+    def VanderPol_dynamics_xu(self, x, u):
+        x = reshape_pt1(x)
+        u = reshape_pt1(u)
+        xdot = torch.zeros_like(x)
+        xdot[..., 0] += x[..., 1]
+        xdot[..., 1] += self.mu * (1 - x[..., 0] ** 2) * x[..., 1] \
+                        - x[..., 0] + u[..., 0]
+        return xdot
+
+# Dynamics of the continuous time Lorenz oscillator, with control law u(t)
+# See https://en.wikipedia.org/wiki/Lorenz_system
+# https://arxiv.org/pdf/2201.05136.pdf
+# https://github.com/josephbakarji/deep-delay-autoencoder/blob/main/examples/lorenz.py
+class Lorenz:
+
+    def __init__(self, device, kwargs):
+        self.device = device
+        self.sigma = kwargs.get('sigma')
+        self.rho = kwargs.get('rho')
+        self.beta = kwargs.get('beta')
+        self.A = torch.tensor([[-self.sigma, self.sigma, 0.],
+                               [self.rho, -1., 0.],
+                               [0., 0., -self.beta]],
+                              device=self.device)
+
+    def __call__(self, t, x, u, t0, init_control, process_noise_var, kwargs,
+                 impose_init_control=False):
+        return self.Lorenz_dynamics(
+            t, x, u, t0, init_control, process_noise_var, kwargs,
+            impose_init_control)
+
+    def Lorenz_dynamics(self, t, x, u, t0, init_control,
+                           process_noise_var, kwargs,
+                           impose_init_control=False):
+        device = x.device
+        x = reshape_pt1(x)
+        u = reshape_pt1(u(t, kwargs, t0, init_control, impose_init_control))
+        xdot = torch.matmul(self.A, x.t()).t()
+        xdot[..., 1] -= x[..., 0] * x[..., 2]
+        xdot[..., 2] += x[..., 0] * x[..., 1]
+        xdot += u
+        if process_noise_var != 0:
+            xdot += torch.normal(0, np.sqrt(process_noise_var), size=xdot.shape,
+                                 device=device)
+        return xdot
+
+    def Lorenz_dynamics_xu(self, x, u):
+        x = reshape_pt1(x)
+        u = reshape_pt1(u)
+        xdot = torch.zeros_like(x)
+        xdot[..., 0] += self.sigma * (x[..., 1] - x[..., 0])
+        xdot[..., 1] += x[..., 0] * (self.rho - x[..., 2]) - x[..., 1]
+        xdot[..., 2] += x[..., 0] * x[..., 1] - self.beta * x[..., 2]
+        xdot += u
         return xdot
 
 

@@ -36,16 +36,20 @@ class Learn_NODE_difftraj_exp_datasets(Learn_NODE_difftraj):
     """
 
     def __init__(self, X_train, U_train, submodel: nn.Module, config: Config,
-                 sensitivity='autograd', ground_truth_approx=True,
-                 validation=True, dataset_on_GPU=False):
+                 X_test=None, U_test=None, sensitivity='autograd',
+                 ground_truth_approx=True, validation=True,
+                 dataset_on_GPU=False):
+        self.X_test = X_test
+        self.U_test = U_test
         super().__init__(X_train=X_train, U_train=U_train, submodel=submodel,
                          config=config, sensitivity=sensitivity,
                          ground_truth_approx=ground_truth_approx,
                          validation=validation, dataset_on_GPU=dataset_on_GPU)
         self.variables['X_test'] = self.X_test
         self.variables['U_test'] = self.U_test
-        self.variables['train_idx'] = self.train_idx
-        self.variables['test_idx'] = self.test_idx
+        if X_test is None:
+            self.variables['train_idx'] = self.train_idx
+            self.variables['test_idx'] = self.test_idx
 
     def create_grid(self, constrain_u, grid_inf, grid_sup):
         # Create random grid for evaluation
@@ -74,39 +78,49 @@ class Learn_NODE_difftraj_exp_datasets(Learn_NODE_difftraj):
 
     def create_rollout_list(self):
         # When no ground truth is available, rollouts are actually test data
-        test_size = 0.38  # 0.3 of full dataset, so 0.38 after validation split
-        self.train_test_split = train_test_split(
-            np.arange(self.X_train.shape[0], dtype=int), test_size=test_size,
-            shuffle=True)
-        self.test_idx = self.train_idx.copy()[self.train_test_split[1]]
-        self.train_idx = self.train_idx[self.train_test_split[0]]
-        train_split = torch.as_tensor(self.train_test_split[0],
-                                      device=self.X_train.device)
-        test_split = torch.as_tensor(self.train_test_split[1],
-                                     device=self.X_train.device)
-        self.X_train, self.X_test = \
-            torch.index_select(self.X_train, dim=0, index=train_split), \
-            torch.index_select(self.X_train, dim=0, index=test_split)
-        self.U_train, self.U_test = \
-            torch.index_select(self.U_train, dim=0, index=train_split), \
-            torch.index_select(self.U_train, dim=0, index=test_split)
-        self.init_state_estim, self.init_state_estim_test = \
-            torch.index_select(
-                self.init_state_estim, dim=0, index=train_split), \
-            torch.index_select(
-                self.init_state_estim, dim=0, index=test_split)
-        if self.init_state_model:
-            self.init_state_obs, self.init_state_obs_test = \
+        if self.X_test is None:
+            # Create test rollouts from X_train
+            if self.config.test_size is None:
+                test_size = 0.38  # 0.3 of full dataset, so 0.38 after val split
+            else:
+                test_size = self.test_size
+            self.train_test_split = train_test_split(
+                np.arange(self.X_train.shape[0], dtype=int),
+                test_size=test_size, shuffle=True)
+            self.test_idx = self.train_idx.copy()[self.train_test_split[1]]
+            self.train_idx = self.train_idx[self.train_test_split[0]]
+            train_split = torch.as_tensor(self.train_test_split[0],
+                                          device=self.X_train.device)
+            test_split = torch.as_tensor(self.train_test_split[1],
+                                         device=self.X_train.device)
+            self.X_train, self.X_test = \
+                torch.index_select(self.X_train, dim=0, index=train_split), \
+                torch.index_select(self.X_train, dim=0, index=test_split)
+            self.U_train, self.U_test = \
+                torch.index_select(self.U_train, dim=0, index=train_split), \
+                torch.index_select(self.U_train, dim=0, index=test_split)
+            self.init_state_estim, self.init_state_estim_test = \
                 torch.index_select(
-                    self.init_state_obs, dim=0, index=train_split), \
+                    self.init_state_estim, dim=0, index=train_split), \
                 torch.index_select(
-                    self.init_state_obs, dim=0, index=test_split)
+                    self.init_state_estim, dim=0, index=test_split)
+            if self.init_state_model:
+                self.init_state_obs, self.init_state_obs_test = \
+                    torch.index_select(
+                        self.init_state_obs, dim=0, index=train_split), \
+                    torch.index_select(
+                        self.init_state_obs, dim=0, index=test_split)
         if self.difftraj:
-            self.nb_difftraj = len(train_split)
-            self.nb_difftraj_test = len(test_split)
-            self.nb_rollouts = len(test_split)
-            self.specs['nb_difftraj_train'] = len(train_split)
-            self.specs['nb_difftraj_test'] = len(test_split)
+            # self.nb_difftraj = len(train_split)
+            # self.nb_difftraj_test = len(test_split)
+            # self.nb_rollouts = len(test_split)
+            # self.specs['nb_difftraj_train'] = len(train_split)
+            # self.specs['nb_difftraj_test'] = len(test_split)
+            self.nb_difftraj = len(self.X_train)
+            self.nb_difftraj_test = len(self.X_test)
+            self.nb_rollouts = len(self.X_test)
+            self.specs['nb_difftraj_train'] = len(self.X_train)
+            self.specs['nb_difftraj_test'] = len(self.X_test)
 
         # TODO handling of rollouts is slow (for loop instead of parallel
         #  simulation), should run them all in parallel like regular NODE!

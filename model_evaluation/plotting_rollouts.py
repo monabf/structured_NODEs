@@ -15,7 +15,12 @@ from NN_for_ODEs.NODE_utils import make_init_state_obs, \
 from utils.utils import RMS, log_multivariate_normal_likelihood, reshape_pt1, \
     reshape_dim1, list_torch_to_numpy, interpolate_func
 
-sb.set_style('whitegrid')
+# To avoid Type 3 fonts for submission https://tex.stackexchange.com/questions/18687/how-to-generate-pdf-without-any-type3-fonts
+plt.rc('text', usetex=True)
+plt.rc('text.latex', preamble=r'\usepackage{amsfonts}\usepackage{cmbright}')
+plt.rc('font', family='serif')
+
+sb.set_style("whitegrid")
 
 
 # Some useful plotting functions to run open-loop rollouts (trajectory of GP
@@ -100,7 +105,11 @@ def NODE_rollout(NODE, init_state, control_traj, xtraj_true,
             if NODE.ground_truth_approx:
                 # If ground_truth_approx, init_state contains the test inputs
                 # for the given recognition model (taken from Xtest)
-                x0_estim = NODE.init_state_model(init_state)
+                if 'RNN' in NODE.init_state_obs_method:
+                    x0_estim = NODE.init_state_model(torch.unsqueeze(
+                        init_state, 0))
+                else:
+                    x0_estim = NODE.init_state_model(init_state)
             else:
                 # Otherwise, need to create the inputs for the recognition
                 # model given the rollout trajectories
@@ -167,7 +176,11 @@ def NODE_EKF_rollout(NODE, init_state, control_traj, xtraj_true,
             if NODE.ground_truth_approx:
                 # If ground_truth_approx, init_state contains the test inputs
                 # for the given recognition model (taken from Xtest)
-                x0_estim = NODE.init_state_model(init_state)
+                if 'RNN' in NODE.init_state_obs_method:
+                    x0_estim = NODE.init_state_model(torch.unsqueeze(
+                        init_state, 0))
+                else:
+                    x0_estim = NODE.init_state_model(init_state)
             else:
                 # Otherwise, need to create the inputs for the recognition
                 # model given the rollout trajectories
@@ -392,8 +405,8 @@ def save_rollout_variables(model_object, results_folder, nb_rollouts,
                                          facecolor='blue', alpha=0.2)
                         plt.title('Phase portrait of test trajectory')
                     plt.legend()
-                    plt.xlabel('x_' + str(k))
-                    plt.ylabel('x_' + str(k + 1))
+                    plt.xlabel(rf'$x_{k}$')
+                    plt.ylabel(rf'$x_{k+1}$')
                     plt.savefig(os.path.join(rollout_folder, name),
                                 bbox_inches='tight')
                     plt.close('all')

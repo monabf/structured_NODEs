@@ -51,7 +51,7 @@ class DEFunc_time(nn.Module):
                  impose_init_control=False, verbose=False):
         # Actual dynamics model defined by the NODE = submodel(xt, ut)
         x = reshape_pt1(x)
-        if not self.no_control:  # new
+        if not self.no_control:# and not self.config.no_control:  # new
         # if not self.config.no_control:  # old
             u = reshape_pt1(u(t, kwargs, t0, init_control, impose_init_control))
             x = torch.cat((x, u), dim=-1)
