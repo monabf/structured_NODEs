@@ -33,8 +33,10 @@ from utils.config import Config
 
 sb.set_style('whitegrid')
 
-# Script to learn physical dynamics (backPhi) from canonical observations
-# using a NN model, on a harmonic oscillator with unknown frequency
+# Script to learn a recognition model (estimates the  initial condition using
+# NODE settings and observation data) for the FitzHugh-Nagumo model with
+# constant (known) stimulus
+# Dynamics known up to parameters, jointly optimized with recognition model
 
 # Logging
 # https://stackoverflow.com/questions/13733552/logger-configuration-to-log-to-file-and-print-to-stdout

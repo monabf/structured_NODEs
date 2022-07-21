@@ -39,7 +39,8 @@ plt.rc('font', family='serif')
 sb.set_style("whitegrid")
 
 # Script to learn a recognition model (estimates the  initial condition using
-# NODE settings and observation data) for the controlled Van der Pol oscillator
+# NODE settings and observation data) for the controlled Van der Pol
+# oscillator with known dynamics
 
 # Logging
 # https://stackoverflow.com/questions/13733552/logger-configuration-to-log-to-file-and-print-to-stdout

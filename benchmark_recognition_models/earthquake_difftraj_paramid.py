@@ -39,6 +39,7 @@ sb.set_style('whitegrid')
 # NODE settings and observation data) for the earthquake model with a known
 # external disturbance (linear but non autonomous) (unrealistic to assume
 # disturbance caused by earthquake is known individually, only output should be)
+# Dynamics known up to parameters, jointly optimized with recognition model
 
 # Logging
 # https://stackoverflow.com/questions/13733552/logger-configuration-to-log-to-file-and-print-to-stdout

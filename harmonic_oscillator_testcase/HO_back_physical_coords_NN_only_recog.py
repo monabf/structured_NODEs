@@ -38,8 +38,10 @@ plt.rc('font', family='serif')
 
 sb.set_style("whitegrid")
 
-# Script to learn physical dynamics (backPhi) from canonical observations
-# using a NN model, on a harmonic oscillator with unknown frequency
+# Script to learn NODEs on the harmonic oscillator
+# Extended state-space model with x3 = constant frequency, so that the
+# dynamics are entirely known and only the initial condition (containing the
+# frequency) should be estimated
 
 # Logging
 # https://stackoverflow.com/questions/13733552/logger-configuration-to-log-to-file-and-print-to-stdout

@@ -39,8 +39,8 @@ plt.rc('font', family='serif')
 
 sb.set_style("whitegrid")
 
-# Script to learn physical dynamics (backPhi) from canonical observations
-# using a NN model, on a harmonic oscillator with unknown frequency
+# Script to learn NODEs on the harmonic oscillator
+# No structure imposed
 
 # Logging
 # https://stackoverflow.com/questions/13733552/logger-configuration-to-log-to-file-and-print-to-stdout
