@@ -1,5 +1,5 @@
-Code for the paper: "Using what you know: Learning dynamics 
-from partial observations with structured neural ODEs".
+Code for the paper: "Recognition Models to Learn Dynamics from Partial 
+Observations with Neural ODEs".
 \
 Contains tests with simulation and real data. The experimental data from the 
 robotic exoskeleton is property of Wandercraft.
