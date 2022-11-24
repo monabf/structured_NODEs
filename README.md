@@ -22,13 +22,14 @@ To start working:
 
 To reproduce the results of the paper:
 
-- Benchmark of recognition models: run `python benchmark_recognition_models/earthquake_difftraj_paramid.py 1 
+- Benchmark of recognition models: run `python 
+  benchmark_recognition_models/earthquake_difftraj_fullNODE.py 1 
   KKL_u0T_back` for the earthquake model with joint optimization of the 
   dynamical parameters (Fig. 2, left). Similarly for the 
   FitzHugh-Nagumo model (Fig. 2, middle), run `python 
-  benchmark_recognition_models/FitzHugh_Nagumo_ODE_difftraj_paramid.py 1 
+  benchmark_recognition_models/FitzHugh_Nagumo_ODE_difftraj_fullNODE.py 1 
   KKL_u0T_back`, and for the Van der Pol model (Fig. 2, right), run `python 
-  benchmark_recognition_models/vanderpol_difftraj_paramid.py 1 
+  benchmark_recognition_models/vanderpol_difftraj_fullNODE.py 1 
   KKLu_back`. Options for the recognition model (second argument of the 
   python command, the first being the process number) are: `KKL_u0T_back` for 
   backward KKL (`KKL_u0T` for forward), `KKLu_back` for 
